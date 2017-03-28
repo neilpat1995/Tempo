@@ -1,3 +1,5 @@
 songs/
 *.pyc
 venv/
+*.sh
+*.cfg

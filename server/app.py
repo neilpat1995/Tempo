@@ -1,5 +1,5 @@
 #!venv/bin/python
-from flask import Flask
+from flask import Flask, g
 from flask import make_response
 from flask import request
 from flask import abort
@@ -9,9 +9,11 @@ import os
 from itsdangerous import (TimedJSONWebSignatureSerializer as Serializer, BadSignature, SignatureExpired)
 from flask_sqlalchemy import SQLAlchemy
 from flask.ext.httpauth import HTTPBasicAuth
+from flask.ext.mysql import MySQL
 
 # Configure app and other utilities
 app = Flask(__name__)
+app.config.from_envvar('TEMPO_APPLICATION_SETTINGS')
 auth = HTTPBasicAuth()
 
 db_user = os.environ['TEMPO_DATABASE_USER']
@@ -35,19 +37,28 @@ class User(db.Model):
 	__tablename__ = 'Users'
 	user_id = db.Column(db.Integer, primary_key = True)
 	username = db.Column(db.String(32), index = True, unique = True)
-	password = db.Column(db.String(128))
+	password = db.Column(db.String(250))
 
 	def __init__(self, username, password):
 		self.username = username
 		self.password = password
 
 	def __repr__(self):
-		return '<User %r>' % self.username
+		return '<User: %r>' % self.username
+
+	def as_dict(self):
+		dict_object = {
+			'user_id': self.user_id,
+			'username': self.username,
+			'password': self.password
+		}
+		return dict_object
 
 	def generate_auth_token(self, expiration = 600):
 		s = Serializer(app.config['SECRET_KEY'], expires_in = expiration)
-		return s.dumps({ 'id': self.user_id })
+		return s.dumps({ 'user_id': self.user_id }) # encrypt a dictionary and encode user_id within it 
 
+	# Helper function to check if user token is valid and unexpired, used for authenticating user.
 	@staticmethod
 	def verify_auth_token(token):
 		s = Serializer(app.config['SECRET_KEY'])
@@ -62,15 +73,15 @@ class User(db.Model):
 
 @auth.verify_password
 def verify_password(username_or_token, password):
-    # first try to authenticate by token
-    user = User.verify_auth_token(username_or_token)
-    if not user:
-        # try to authenticate with username/password
-        user = User.query.filter_by(username = username_or_token).first()
-        if not user or not user.verify_password(password):
-            return False
-    g.user = user
-    return True
+	# Begin by attempting token authorization
+	user = User.verify_auth_token(username_or_token)
+	if not user:
+		# Attempt authentication with username and password
+		user = User.query.filter_by(username = username_or_token).first()
+        if not user or not (user.password == password):
+       		return False
+	g.user = user
+	return True
 
 '''
 Endpoint to add new user.
@@ -101,11 +112,13 @@ def create_user():
 	db.session.commit()
 
 	if (User.query.filter_by(username=request.json['username']).first() is not None):
-		return make_response(jsonify({'new_user': new_user.__dict__}), 200);
+		return make_response(jsonify({'Success': new_user.as_dict()}), 200);
+		#return jsonify({'Success': new_user.as_dict});
 	else:
    		return make_response(jsonify({'Error': 'New user could not be created.'}), 1000);
 
 
+# Route to handle user sign-in; verifies credentials and, if successful, returns an auth token
 @app.route('/users/auth', methods=['POST'])
 @auth.login_required
 def auth_user():
@@ -153,4 +166,5 @@ def not_found(error):
     return make_response(jsonify({'error': 'Not found'}), 404)
 
 if __name__ == '__main__':
+	db.create_all()
 	app.run(debug=True)
