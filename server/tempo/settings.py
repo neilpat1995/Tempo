@@ -22,7 +22,7 @@ PORT = int_env('PORT', 3000)
 
 SECRET_KEY = str_env('SECRET_KEY', 'tempo-secret-key')
 
-SQLALCHEMY_DATABASE_URI = 'postgresql://%s:%s@%s/%s' % (
+SQLALCHEMY_DATABASE_URI = 'pymysql+mysql://%s:%s@%s/%s' % (
     str_env('TEMPO_DATABASE_USER'),
     str_env('TEMPO_DATABASE_PASSWORD'),
     str_env('TEMPO_DATABASE_HOST'),
