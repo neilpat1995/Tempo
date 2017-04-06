@@ -1,0 +1,7 @@
+Flask==0.12
+Flask-HTTPAuth==3.2.2
+Flask-MySQL==1.4.0
+Flask-SQLAlchemy==2.2
+itsdangerous==0.24
+PyMySQL==0.7.10
+Werkzeug==0.12.1
