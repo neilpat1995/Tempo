@@ -110,6 +110,7 @@ def get_recommendations(user_id):
         key = keys[0]
         ret.append({
             'name': song.name,
+            'song_id': song.song_id,
             'url': s3.generate_presigned_url(
                 'get_object',
                 Params = { 'Bucket': 'tempo-songs', 'Key': key.key },
